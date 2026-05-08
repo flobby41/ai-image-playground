@@ -118,7 +118,9 @@ ABSOLUTELY CRITICAL - SKIN TONE CONSISTENCY: The person's face, neck, arms, hand
     }
 
     console.log("[v0] Generated prompt length:", prompt.length)
-    console.log("[v0] Prompt preview:", prompt.substring(0, 100) + "...")
+    console.log("[v0] ==== BEGIN PROMPT ====")
+    console.log(prompt)
+    console.log("[v0] ==== END PROMPT ====")
 
     const geminiImageModelId = getGeminiImageModelId()
     console.log("[v0] Preparing to call generateText with Google Generative AI...")
@@ -154,14 +156,27 @@ ABSOLUTELY CRITICAL - SKIN TONE CONSISTENCY: The person's face, neck, arms, hand
     console.log("[v0] generateText completed")
     console.log("[v0] Result keys:", Object.keys(result))
     console.log("[v0] Result.files:", result.files?.length || 0, "files")
+    console.log("[v0] Result.text length:", result.text?.length || 0)
     console.log("[v0] Result.usage:", result.usage)
 
     const imageFiles = result.files?.filter((f) => f.mediaType?.startsWith("image/"))
     console.log("[v0] Image files found:", imageFiles?.length || 0)
 
     if (!imageFiles || imageFiles.length === 0) {
+      const modelText = result.text ?? ""
       console.log("[v0] No image files generated")
-      return NextResponse.json({ error: "No image was generated" }, { status: 500 })
+      console.log("[v0] ==== BEGIN MODEL TEXT (no image) ====")
+      console.log(modelText || "<empty>")
+      console.log("[v0] ==== END MODEL TEXT ====")
+      return NextResponse.json(
+        {
+          error: "NO_IMAGE_GENERATED",
+          productName,
+          reason: modelText,
+          usage: result.usage,
+        },
+        { status: 422 },
+      )
     }
 
     const generatedImage = imageFiles[0]

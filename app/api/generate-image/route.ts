@@ -68,6 +68,10 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Converted image types:", convertedImage1.mimeType, convertedImage2.mimeType)
 
+    console.log("[v0] ==== BEGIN PROMPT ====")
+    console.log(prompt)
+    console.log("[v0] ==== END PROMPT ====")
+
     const geminiImageModelId = getGeminiImageModelId()
     console.log("[v0] Preparing to call generateText with Google Generative AI...")
     console.log("[v0] Gemini image model:", geminiImageModelId)
@@ -110,8 +114,19 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Image files found:", imageFiles?.length || 0)
 
     if (!imageFiles || imageFiles.length === 0) {
+      const modelText = result.text ?? ""
       console.log("[v0] No image files generated")
-      return NextResponse.json({ error: "No image was generated" }, { status: 500 })
+      console.log("[v0] ==== BEGIN MODEL TEXT (no image) ====")
+      console.log(modelText || "<empty>")
+      console.log("[v0] ==== END MODEL TEXT ====")
+      return NextResponse.json(
+        {
+          error: "NO_IMAGE_GENERATED",
+          reason: modelText,
+          usage: result.usage,
+        },
+        { status: 422 },
+      )
     }
 
     // Convert the first image to base64 data URL
