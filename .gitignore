@@ -3,6 +3,9 @@
 # dependencies
 /node_modules
 
+# pnpm (never commit local store)
+/.pnpm-store/
+
 # next.js
 /.next/
 /out/
