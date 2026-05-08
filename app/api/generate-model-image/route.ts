@@ -2,6 +2,8 @@ import { google } from "@ai-sdk/google"
 import { generateText } from "ai"
 import { type NextRequest, NextResponse } from "next/server"
 
+import { getGeminiImageModelId } from "@/lib/gemini-image-model"
+
 console.log("[v0] Google API key available:", !!process.env.GOOGLE_GENERATIVE_AI_API_KEY)
 
 async function convertImageToSupportedFormat(file: File): Promise<{ buffer: Buffer; mimeType: string }> {
@@ -118,9 +120,11 @@ ABSOLUTELY CRITICAL - SKIN TONE CONSISTENCY: The person's face, neck, arms, hand
     console.log("[v0] Generated prompt length:", prompt.length)
     console.log("[v0] Prompt preview:", prompt.substring(0, 100) + "...")
 
+    const geminiImageModelId = getGeminiImageModelId()
     console.log("[v0] Preparing to call generateText with Google Generative AI...")
+    console.log("[v0] Gemini image model:", geminiImageModelId)
     const result = await generateText({
-      model: google("gemini-2.5-flash-image-preview"),
+      model: google(geminiImageModelId),
       providerOptions: {
         google: {
           responseModalities: ["TEXT", "IMAGE"],

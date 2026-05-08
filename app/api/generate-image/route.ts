@@ -2,6 +2,8 @@ import { google } from "@ai-sdk/google"
 import { generateText } from "ai"
 import { type NextRequest, NextResponse } from "next/server"
 
+import { getGeminiImageModelId } from "@/lib/gemini-image-model"
+
 console.log("[v0] Google API key available:", !!process.env.GOOGLE_GENERATIVE_AI_API_KEY)
 
 async function convertImageToSupportedFormat(file: File): Promise<{ buffer: Buffer; mimeType: string }> {
@@ -66,9 +68,11 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Converted image types:", convertedImage1.mimeType, convertedImage2.mimeType)
 
+    const geminiImageModelId = getGeminiImageModelId()
     console.log("[v0] Preparing to call generateText with Google Generative AI...")
+    console.log("[v0] Gemini image model:", geminiImageModelId)
     const result = await generateText({
-      model: google("gemini-2.5-flash-image-preview"),
+      model: google(geminiImageModelId),
       providerOptions: {
         google: {
           responseModalities: ["TEXT", "IMAGE"],
