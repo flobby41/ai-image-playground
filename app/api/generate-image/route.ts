@@ -1,7 +1,8 @@
+import { google } from "@ai-sdk/google"
 import { generateText } from "ai"
 import { type NextRequest, NextResponse } from "next/server"
 
-console.log("[v0] AI Gateway API key available:", !!process.env.AI_GATEWAY_API_KEY)
+console.log("[v0] Google API key available:", !!process.env.GOOGLE_GENERATIVE_AI_API_KEY)
 
 async function convertImageToSupportedFormat(file: File): Promise<{ buffer: Buffer; mimeType: string }> {
   console.log("[v0] Converting image format:", file.type, "size:", file.size)
@@ -65,9 +66,9 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Converted image types:", convertedImage1.mimeType, convertedImage2.mimeType)
 
-    console.log("[v0] Preparing to call generateText with AI Gateway...")
+    console.log("[v0] Preparing to call generateText with Google Generative AI...")
     const result = await generateText({
-      model: "google/gemini-2.5-flash-image-preview",
+      model: google("gemini-2.5-flash-image-preview"),
       providerOptions: {
         google: {
           responseModalities: ["TEXT", "IMAGE"],
