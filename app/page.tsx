@@ -17,6 +17,34 @@ interface Product {
   description: string
 }
 
+const FALLBACK_FAILURE_REASON = "The model declined to generate this image."
+
+async function parseGenerationFailure(response: Response): Promise<{ reason: string }> {
+  try {
+    const data = await response.clone().json()
+    const reason = typeof data?.reason === "string" && data.reason.trim().length > 0 ? data.reason : null
+    if (reason) {
+      return { reason }
+    }
+    if (typeof data?.error === "string") {
+      return { reason: data.error }
+    }
+  } catch {
+    // Response is not JSON; fall through to text fallback below.
+  }
+
+  try {
+    const text = await response.clone().text()
+    if (text.trim().length > 0) {
+      return { reason: text }
+    }
+  } catch {
+    // Ignore; will return generic fallback.
+  }
+
+  return { reason: FALLBACK_FAILURE_REASON }
+}
+
 const products: Product[] = [
   {
     id: "1",
@@ -138,6 +166,7 @@ export default function BananaSportswearStorefront() {
   const [isPersonalized, setIsPersonalized] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [personalizedImages, setPersonalizedImages] = useState<{ [key: string]: string }>({})
+  const [failedProducts, setFailedProducts] = useState<{ [productId: string]: string }>({})
   const [generationProgress, setGenerationProgress] = useState(0)
   const [isDragOver, setIsDragOver] = useState(false)
   const [viewMode, setViewMode] = useState<"products" | "generated">("products")
@@ -187,6 +216,7 @@ export default function BananaSportswearStorefront() {
     setUserPhoto(file)
     setIsPersonalized(false)
     setPersonalizedImages({})
+    setFailedProducts({})
     setViewMode("products")
     setTimeout(() => {
       generatePersonalizedImagesWithFile(file)
@@ -200,6 +230,7 @@ export default function BananaSportswearStorefront() {
     setShowGallery(false)
     setIsTransitioning(false)
     const newPersonalizedImages: { [key: string]: string } = {}
+    const newFailedProducts: { [productId: string]: string } = {}
 
     try {
       for (let i = 0; i < products.length; i++) {
@@ -276,8 +307,14 @@ export default function BananaSportswearStorefront() {
           clearTimeout(timeoutId)
 
           if (!response.ok) {
-            const errorText = await response.text()
-            throw new Error(`Failed to generate image for ${product.name}: ${response.status} - ${errorText}`)
+            const failure = await parseGenerationFailure(response)
+            console.warn(
+              `[v0] Generation failed for ${product.name}: status=${response.status} reason=${failure.reason}`,
+            )
+            newPersonalizedImages[product.id] = product.image
+            newFailedProducts[product.id] = failure.reason
+            await progressPromise
+            continue
           }
 
           const data = await response.json()
@@ -290,7 +327,11 @@ export default function BananaSportswearStorefront() {
           console.log(`[v0] Successfully generated image for ${product.name}: ${data.imageUrl.substring(0, 50)}...`)
         } catch (productError) {
           console.error(`[v0] Error generating image for ${product.name}:`, productError)
-          newPersonalizedImages[product.id] = product.image // Fallback to original image
+          newPersonalizedImages[product.id] = product.image
+          newFailedProducts[product.id] =
+            productError instanceof Error && productError.name === "AbortError"
+              ? "Request timed out after 60s."
+              : "Network error while contacting the generation service."
         }
 
         await progressPromise
@@ -302,6 +343,7 @@ export default function BananaSportswearStorefront() {
       console.log(`[v0] Successfully generated ${generatedCount} out of ${products.length} images`)
 
       setPersonalizedImages(newPersonalizedImages)
+      setFailedProducts(newFailedProducts)
       setIsPersonalized(generatedCount > 0)
 
       setTimeout(() => {
@@ -318,7 +360,8 @@ export default function BananaSportswearStorefront() {
       }, 300)
     } catch (error) {
       console.error("[v0] Error in generatePersonalizedImagesWithFile:", error)
-      alert(`Failed to generate personalized images: ${error.message}. Please try again.`)
+      const message = error instanceof Error ? error.message : String(error)
+      alert(`Failed to generate personalized images: ${message}. Please try again.`)
     } finally {
       setIsGenerating(false)
       setGenerationProgress(0)
@@ -528,7 +571,20 @@ export default function BananaSportswearStorefront() {
                     }`}
                     onLoad={() => handleImageLoad(product.id)}
                   />
+                  {viewMode === "generated" && failedProducts[product.id] ? (
+                    <div
+                      className="absolute top-3 right-3 bg-black text-white text-[10px] font-mono tracking-widest uppercase px-3 py-1.5 rounded-sm shadow-md max-w-[80%]"
+                      title={failedProducts[product.id]}
+                    >
+                      Generation failed
+                    </div>
+                  ) : null}
                 </div>
+                {viewMode === "generated" && failedProducts[product.id] ? (
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-2">
+                    Showing original product photo. Try a fuller, higher-resolution photo of yourself.
+                  </p>
+                ) : null}
 
                 <div className="space-y-3">
                   <div>
